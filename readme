@@ -1,0 +1,363 @@
+ AI Data Analysis Agent
+
+A chat-based AI agent, built in [n8n](https://n8n.io), that lets you upload a
+CSV/Excel file and ask questions about it in plain English. It plans the
+analysis with an LLM, performs the actual math deterministically in code, and
+replies with clear, business-ready answers, tables, and insights.
+
+---
+
+## 1. Project Overview
+
+**What it does** — You upload a spreadsheet (CSV / XLSX / XLS) into a chat, then
+ask natural-language questions ("What is the total revenue?", "Which product
+line has the highest profit margin?", "Show outliers in revenue"). The agent
+analyzes your data and answers with numbers, tables, and short business
+insights.
+
+**Why it was built** — Non-technical users often have data in spreadsheets but
+no fast way to interrogate it without writing formulas, pivot tables, or SQL.
+This agent turns everyday questions into correct calculations without the user
+touching a formula.
+
+**Who it is for** — Analysts, operators, founders, and business users who want
+quick, trustworthy answers from their own datasets, and anyone learning how to
+combine LLM planning with deterministic computation in n8n.
+
+---
+
+## 2. Problem Statement
+
+- Manually analyzing CSV/Excel files is slow and error-prone (pivot tables,
+  lookups, hand-written formulas).
+- People think in questions ("which region grew the most?"), not in
+  spreadsheet operations.
+- Real analysis needs **calculations, comparisons, rankings, and insights**,
+  not just a chat model guessing numbers — LLMs are unreliable at arithmetic.
+
+---
+
+## 3. Solution
+
+An AI agent that separates **thinking** from **calculating**:
+
+```
+Upload dataset → ask a question → AI plans the analysis →
+code performs the exact calculations → AI explains the results
+```
+
+The LLM decides *what* to compute (which operation, which columns). A code
+step does the actual arithmetic over your real rows, so the numbers are always
+correct and reproducible. A second LLM step turns those computed numbers into a
+readable answer — it is explicitly forbidden from inventing or changing any
+figure.
+
+---
+
+## 4. Key Features
+
+- **CSV / Excel analysis** — `.csv`, `.xlsx`, `.xls`
+- **Natural-language questions** — no formulas or query language needed
+- **Calculations** — sum, average, count, distinct count, min, max, median
+- **Filtering and grouping** — break a metric down by one or two categories
+- **Comparisons** — period-over-period / trend (year, quarter, month, day) with
+  change and % change
+- **Ranking** — top-N / bottom-N groups
+- **Derived metrics** — margin, rate, ratio, percentage, average-per-X,
+  computed correctly **per group** (never by ranking the numerator alone)
+- **Descriptive statistics** — count, min, max, range, mean, median, mode,
+  std dev, variance, Q1/Q3, IQR, skewness, custom percentiles
+- **Distributions** — value counts for categories; a proper histogram for
+  numeric columns (contiguous, non-overlapping bins, each value counted once)
+- **Outliers** — IQR method, returns the actual offending rows with bounds
+- **Extremes** — the actual record(s) with the highest/lowest value
+- **Correlation** — Pearson between two numeric columns
+- **Multi-step / complex questions** — decomposed into ordered steps; later
+  steps are scoped to the subgroup an earlier step identified
+- **Business insights** — cautious, evidence-based interpretation
+- **Session-based Q&A** — remembers your uploaded dataset for the conversation
+- **Structured responses** — Answer / Results (tables) / Key Insight
+
+---
+
+## 5. System Architecture
+
+```
+        ┌──────┐
+        │ User │  (chat: uploads file + asks questions)
+        └──┬───┘
+           │
+     ┌─────▼───────────────┐
+     │ n8n Chat Trigger    │  file upload + message
+     └─────┬───────────────┘
+           │
+     ┌─────▼───────────────┐
+     │ Data Processing     │  detect file type, parse CSV/XLSX/XLS,
+     │ (parse + profile)   │  profile columns (type, stats)
+     └─────┬───────────────┘
+           │
+     ┌─────▼───────────────┐        ┌─────────────────────────┐
+     │ Data Q&A Session    │◄──────►│ Data QA Sessions table  │
+     │ store / retrieve    │        │ (dataset + profile per  │
+     └─────┬───────────────┘        │  session)               │
+           │                        └─────────────────────────┘
+     ┌─────▼───────────────┐
+     │ AI Agent (planner)  │  LLM converts question → analysis plan
+     └─────┬───────────────┘
+           │
+     ┌─────▼───────────────┐
+     │ Calculation engine  │  code node runs the exact math on real rows
+     └─────┬───────────────┘
+           │
+     ┌─────▼───────────────┐
+     │ AI Explainer        │  LLM formats results (no number invention)
+     └─────┬───────────────┘
+           │
+     ┌─────▼───────────────┐
+     │ Final Response      │  Answer / Results / Key Insight
+     └─────────────────────┘
+```
+
+---
+
+## 6. Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Orchestration | n8n (workflow automation) |
+| AI / LLM | Google Gemini (`models/gemini-3.1-flash-lite`) via the Google Gemini (PaLM) API credential |
+| File processing | n8n Extract From File (CSV / XLSX / XLS) |
+| Calculations | n8n Code node (deterministic JavaScript) |
+| Session storage | n8n Data Table ("Data QA Sessions") |
+| Version control / delivery | GitHub |
+
+---
+
+## 7. How the Agent Works
+
+### Step 1: Upload dataset
+The user uploads a CSV/XLSX/XLS file in the chat.
+
+### Step 2: Dataset processing
+The workflow detects the file type, parses it into rows, and builds a **profile**
+— for each column it detects the type (numeric / text / boolean / date) and,
+for numeric columns, basic stats. The dataset + profile are stored in the
+**Data QA Sessions** table, keyed to the chat session. The agent confirms the
+detected rows and columns.
+
+### Step 3: User asks a question
+The user asks in plain English. The stored dataset is reused for the whole
+conversation.
+
+### Step 4: AI interprets the question
+An LLM (the planner) converts the question into an **ordered plan of analytical
+steps** — choosing the operation(s), columns, filters, grouping, and ordering.
+It does **not** compute numbers itself.
+
+### Step 5: Data is analyzed
+A Code node executes the plan against the real rows: aggregates, group-bys,
+top-N, derived metrics, comparisons, statistics, distributions, outliers,
+extremes, correlations — including scoping later steps to the subgroup an
+earlier step identified.
+
+### Step 6: Calculation / validation
+All arithmetic happens in code, so results are exact and reproducible.
+Guardrails: no silent column substitution, correct per-group derived metrics,
+single-assignment histogram bins, IQR outlier detection.
+
+### Step 7: Final answer
+A second LLM formats the computed results into **Answer / Results (tables) /
+Key Insight**, using only the calculated values verbatim — it cannot invent or
+change a number.
+
+---
+
+## 8. Setup & Installation
+
+### Prerequisites
+- An n8n instance (cloud or self-hosted) that supports the LangChain / AI nodes
+  and Data Tables.
+- A **Google Gemini API key** (Google AI Studio).
+
+### Import the n8n workflow
+1. In n8n, go to **Workflows → Import from File**.
+2. Select `data-qa.workflow.json` from this repo.
+
+### Configure API credentials
+1. Create a **Google Gemini (PaLM) API** credential in n8n with your own API key.
+2. Open the imported workflow and select that credential on both model nodes:
+   **Intent Model** and **Explain Model**.
+   > The exported workflow contains only a credential *reference* (id + name),
+   > never an API key — you must supply your own.
+
+### Configure the Data Q&A session table
+1. Create a Data Table named **Data QA Sessions** with these columns
+   (n8n normalizes names to snake_case):
+   - `session_id` (string)
+   - `file_name` (string)
+   - `row_count` (number)
+   - `col_count` (number)
+   - `profile_json` (string)
+   - `dataset_json` (string)
+2. On the **Store Session** and **Get Session** nodes, point the Data Table
+   field at your table.
+
+### Configure required variables / settings
+- No environment variables are required. The only per-instance settings are the
+  Gemini credential and the Data Table selection above.
+
+### Activate / run the workflow
+- For testing, open the workflow and click **Open chat** (the chat trigger is
+  private by default).
+- Publish the workflow when you're ready to use it regularly.
+
+---
+
+## 9. Configuration
+
+| Item | Value / Notes |
+|---|---|
+| Required API key | Google Gemini API key (yours) |
+| Credential type | Google Gemini (PaLM) API, used by **Intent Model** and **Explain Model** |
+| Model | `models/gemini-3.1-flash-lite` |
+| Session table | Data Table **Data QA Sessions** with the columns listed in §8 |
+| Chat trigger | Private by default (`public: false`) — use the in-editor **Open chat**; make public only if you want a shareable URL |
+
+---
+
+## 10. Sample Dataset
+
+Any tabular CSV/Excel file works. For a quick demo, use a small sales-style
+dataset such as `supermarket_sales.csv`:
+
+- **Description** — retail transactions, one row per sale.
+- **Columns (example)** — `invoice_id`, `product_line`, `customer_type`,
+  `unit_price`, `quantity`, `revenue`, `gross_income`, `date`, `payment`, …
+- **Rows** — ~1,000 transactions.
+- **Where to find it** — public "Supermarket Sales" datasets are widely
+  available (e.g. on Kaggle). Place your sample file in a `sample-data/` folder
+  in this repo so reviewers can reproduce the examples.
+
+> The agent is dataset-agnostic — it adapts to whatever columns your file has.
+
+---
+
+## 11. Example Questions & Outputs
+
+### Simple question
+> **"What is the total revenue?"**
+Returns a single total, e.g. `Total revenue: 322,966.75`.
+
+### Filtering question
+> **"What is the total revenue for Member customers?"**
+Filters to `customer_type = Member` before summing.
+
+### Aggregation / grouping question
+> **"Show revenue by product line."**
+Returns a table of each product line with its summed revenue, highlighting the
+top group.
+
+### Comparison question
+> **"How did revenue change month over month?"**
+Returns a period table with change and % change per month.
+
+### Complex multi-step question
+> **"Which product line has the highest revenue, and what is its average
+> transaction value?"**
+Step 1 finds the top product line; step 2 computes the average **scoped to that
+line only** (not the whole dataset).
+
+Every "ok" answer is formatted as **Answer / Results (tables) / Key Insight**.
+
+---
+
+## 12. Screenshots / Demo
+
+_Add images to a `docs/` folder and link them here._
+
+- `docs/workflow.png` — the n8n workflow canvas
+- `docs/upload.png` — uploading a dataset in chat
+- `docs/question.png` — asking a question
+- `docs/output.png` — a formatted answer with a table and insight
+
+---
+
+## 13. Tradeoffs & Design Decisions
+
+- **Why n8n** — fast to build, visual, easy to import/share, and it provides
+  file parsing, chat, LLM, and data-table primitives out of the box.
+- **Why an AI agent** — natural language removes the need for formulas/SQL and
+  handles the huge variety of ways people phrase questions.
+- **Why a session table** — the dataset must persist across multiple questions
+  in a conversation without re-uploading; storing dataset + profile keyed by
+  session enables that.
+- **Why an external calculation layer (code node)** — LLMs are unreliable at
+  arithmetic. Doing the math in code makes results exact, reproducible, and
+  auditable; the LLM only plans and explains.
+- **Current limitations** — see §14.
+
+---
+
+## 14. Known Limitations
+
+- **Manual API credential configuration** — each user must add their own Gemini
+  credential and select it on the two model nodes.
+- **Manual session-table setup** — the Data Table must be created and linked
+  once per instance.
+- **Supported file formats** — CSV, XLSX, XLS only.
+- **Data-size limits** — the dataset is stored and processed in the workflow;
+  very large files may hit memory/time limits. Best for small-to-medium files
+  (roughly up to tens of thousands of rows).
+- **Edge cases** — messy headers, mixed-type columns, or unusual date formats
+  can affect type detection; ambiguous questions trigger a clarification prompt.
+- **Session lifetime** — a dataset lives per chat session; a new conversation
+  needs a new upload.
+
+---
+
+## 15. Future Improvements
+
+- Stronger calculation validation / self-checks
+- Automated data-quality checks on upload (missing values, type conflicts)
+- More file/data sources (Google Sheets, databases, JSON, APIs)
+- Better ambiguity handling and follow-up questions
+- Automated session-table creation on first run
+- Chart / visualization generation alongside tables
+
+---
+
+## 16. Reproducibility
+
+Steps a reviewer can follow:
+
+1. Import `data-qa.workflow.json` into an n8n instance.
+2. Create a Google Gemini credential and select it on **Intent Model** and
+   **Explain Model**.
+3. Create the **Data QA Sessions** Data Table (columns in §8) and link it on
+   **Store Session** / **Get Session**.
+4. Open the workflow, click **Open chat**, and upload the sample file
+   (`sample-data/supermarket_sales.csv`).
+5. Ask the example questions in §11.
+6. **Expected behavior** — the agent confirms the detected rows/columns on
+   upload, then returns Answer / Results / Key Insight for each question, with
+   numbers computed from the data (not invented) and multi-step questions scoped
+   correctly to the identified subgroup.
+
+---
+
+## 17. Project Status
+
+- **Current version** — v1, Gemini-powered (`models/gemini-3.1-flash-lite`).
+- **What has been tested** — end-to-end live chat: file upload + profiling,
+  aggregates, grouping, top-N, derived metrics (per-group), comparisons,
+  statistics, distributions (contiguous bins), IQR outliers, extremes, and
+  multi-step subgroup-scoped questions.
+- **Production-ready vs experimental** — the core analysis engine is stable and
+  tested; treat large-file handling, unusual date parsing, and highly ambiguous
+  questions as areas still being hardened.
+
+
+
+## 18. License
+
+No license specified. All rights reserved. This project is shared for review and demonstration purposes.
