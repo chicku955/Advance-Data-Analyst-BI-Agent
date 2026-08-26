@@ -1,0 +1,720 @@
+{
+  "name": "InsightFlow AI — Advanced Data Analysis & Business Insights Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "allowFileUploads": true,
+          "allowedFilesMimeTypes": "*",
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "4de25ba5-4792-4b77-9dea-e42d5bbc5621",
+      "name": "Chat",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        496
+      ],
+      "webhookId": "443ae393-ba48-40b2-8310-192ff8306a75"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const j = $input.item.json || {};\nconst binary = $input.item.binary || {};\nconst keys = Object.keys(binary);\nlet hasFile = false;\nlet fileName = \"\";\nlet fileExt = \"\";\nlet mimeType = \"\";\nlet newBinary = undefined;\nif (keys.length > 0) {\n  hasFile = true;\n  const b = binary[keys[0]];\n  fileName = (b && b.fileName) ? b.fileName : \"uploaded\";\n  mimeType = (b && b.mimeType) ? b.mimeType : \"\";\n  let ext = (b && b.fileExtension) ? String(b.fileExtension) : \"\";\n  if (!ext && fileName.indexOf(\".\") >= 0) { ext = fileName.split(\".\").pop(); }\n  ext = String(ext || \"\").toLowerCase().replace(\".\", \"\");\n  if (!ext) {\n    if (mimeType.indexOf(\"csv\") >= 0) ext = \"csv\";\n    else if (mimeType.indexOf(\"sheet\") >= 0 || mimeType.indexOf(\"openxml\") >= 0) ext = \"xlsx\";\n    else if (mimeType.indexOf(\"ms-excel\") >= 0) ext = \"xls\";\n  }\n  fileExt = ext;\n  newBinary = { data: b };\n}\nconst out = {\n  json: {\n    hasFile: hasFile,\n    fileName: fileName,\n    fileExt: fileExt,\n    mimeType: mimeType,\n    chatInput: j.chatInput || \"\",\n    sessionId: j.sessionId || \"default\",\n  },\n};\nif (newBinary) out.binary = newBinary;\nreturn out;"
+      },
+      "id": "4b926f39-4fd0-4dde-a8ab-cb366a6a43c3",
+      "name": "Inspect Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "hasfile",
+              "leftValue": "={{ $json.hasFile }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3ccf8f59-0cd5-4b1f-929d-409d9616c8ed",
+      "name": "Has File?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c1",
+                    "leftValue": "={{ $json.fileExt }}",
+                    "rightValue": "csv",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "csv"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c2",
+                    "leftValue": "={{ $json.fileExt }}",
+                    "rightValue": "xlsx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "xlsx"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c3",
+                    "leftValue": "={{ $json.fileExt }}",
+                    "rightValue": "xls",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "xls"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "unsupported"
+        }
+      },
+      "id": "785ac127-1045-4345-aa70-aa3442fe6e8d",
+      "name": "File Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "headerRow": true,
+          "includeEmptyCells": true
+        }
+      },
+      "id": "aae46f92-c984-4ab2-a28d-14465c7e871f",
+      "name": "Parse CSV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst rows = items.map(function (i) { return i.json; }).filter(function (r) { return r && Object.keys(r).length > 0; });\nconst sessionId = $(\"Inspect Input\").first().json.sessionId || \"default\";\nconst fileName = $(\"Inspect Input\").first().json.fileName || \"uploaded\";\n\nif (rows.length === 0) {\n  return [{ json: { error: true, message: \"The uploaded file is empty or could not be parsed into rows.\", sessionId: sessionId, fileName: fileName } }];\n}\n\nconst columns = Object.keys(rows[0]);\n\nfunction isEmpty(v) { return v === null || v === undefined || String(v).trim() === \"\"; }\nfunction toNum(v) {\n  if (isEmpty(v)) return NaN;\n  const s = String(v).replace(/[$,%\\s]/g, \"\").replace(/,/g, \"\");\n  const n = Number(s);\n  return isFinite(n) ? n : NaN;\n}\nfunction looksBool(v) { const s = String(v).trim().toLowerCase(); return s === \"true\" || s === \"false\" || s === \"yes\" || s === \"no\"; }\nfunction looksDate(v) {\n  const s = String(v).trim();\n  if (!/[0-9]/.test(s)) return false;\n  if (!/[-\\/:]/.test(s) && !/\\d{4}/.test(s)) return false;\n  const t = Date.parse(s);\n  return !isNaN(t);\n}\n\nconst profileCols = [];\nfor (let c = 0; c < columns.length; c++) {\n  const col = columns[c];\n  let missing = 0, numericCount = 0, boolCount = 0, dateCount = 0, nonEmpty = 0;\n  const distinct = {};\n  const nums = [];\n  for (let r = 0; r < rows.length; r++) {\n    const v = rows[r][col];\n    if (isEmpty(v)) { missing++; continue; }\n    nonEmpty++;\n    distinct[String(v)] = true;\n    const n = toNum(v);\n    if (!isNaN(n)) { numericCount++; nums.push(n); }\n    if (looksBool(v)) boolCount++;\n    if (looksDate(v)) dateCount++;\n  }\n  let type = \"text\";\n  if (nonEmpty > 0 && numericCount === nonEmpty) type = \"numeric\";\n  else if (nonEmpty > 0 && boolCount === nonEmpty) type = \"boolean\";\n  else if (nonEmpty > 0 && dateCount === nonEmpty) type = \"date\";\n  const info = { name: col, type: type, missing: missing, distinct: Object.keys(distinct).length };\n  if (type === \"numeric\" && nums.length > 0) {\n    const sorted = nums.slice().sort(function (a, b) { return a - b; });\n    const sum = nums.reduce(function (a, b) { return a + b; }, 0);\n    const mid = Math.floor(sorted.length / 2);\n    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;\n    info.stats = { min: sorted[0], max: sorted[sorted.length - 1], mean: sum / nums.length, median: median, sum: sum };\n  }\n  profileCols.push(info);\n}\n\nconst sample = rows.slice(0, 5);\nconst profile = {\n  fileName: fileName,\n  rowCount: rows.length,\n  colCount: columns.length,\n  columns: profileCols,\n  sample: sample,\n};\n\nreturn [{ json: {\n  error: false,\n  sessionId: sessionId,\n  fileName: fileName,\n  rowCount: rows.length,\n  colCount: columns.length,\n  profile_json: JSON.stringify(profile),\n  dataset_json: JSON.stringify(rows),\n} }];"
+      },
+      "id": "a14d8670-9d90-4d1e-811e-c5f63351ef5d",
+      "name": "Build Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "AxFaeyYHwGHVWZ1T",
+          "cachedResultName": "Data QA Sessions"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.sessionId }}",
+            "file_name": "={{ $json.fileName }}",
+            "row_count": "={{ $json.rowCount }}",
+            "col_count": "={{ $json.colCount }}",
+            "profile_json": "={{ $json.profile_json }}",
+            "dataset_json": "={{ $json.dataset_json }}"
+          },
+          "matchingColumns": [
+            "session_id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "40a872a7-c55a-4045-827c-5905fc59e581",
+      "name": "Store Session",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1472,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $(\"Build Profile\").first().json;\nif (p.error) { return [{ json: { output: \"\\u26A0\\uFE0F \" + p.message } }]; }\nconst prof = JSON.parse(p.profile_json);\nconst cols = prof.columns.map(function (c) { return \"- **\" + c.name + \"** (\" + c.type + \")\"; }).join(\"\\n\");\nlet msg = \"\";\nmsg += \"\\u2705 **\" + prof.fileName + \"** loaded successfully.\\n\\n\";\nmsg += \"- Rows: **\" + prof.rowCount + \"**\\n\";\nmsg += \"- Columns: **\" + prof.colCount + \"**\\n\\n\";\nmsg += \"**Detected columns:**\\n\" + cols + \"\\n\\n\";\nmsg += \"You can now ask questions such as \\\"What is the total sales?\\\", \\\"Show the top 5 products by sales\\\", \\\"Sales by region and category\\\", \\\"How did sales change year over year?\\\", or \\\"Give me a summary of this dataset\\\".\";\nreturn [{ json: { output: msg } }];"
+      },
+      "id": "6c3d99b6-9430-40b4-9216-d40e1aa09696",
+      "name": "Upload Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "headerRow": true,
+          "includeEmptyCells": true
+        }
+      },
+      "id": "286ee5d0-cc5c-4ce0-a1c4-9768e81c870e",
+      "name": "Parse XLSX",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xls",
+        "options": {
+          "headerRow": true,
+          "includeEmptyCells": true
+        }
+      },
+      "id": "a9cbf3eb-c2d8-4bf6-b3e8-725cb611eca6",
+      "name": "Parse XLS",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        896,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ext = $(\"Inspect Input\").first().json.fileExt || \"unknown\";\nconst msg = \"\\u26A0\\uFE0F Unsupported file type (\" + ext + \"). Please upload a CSV (.csv) or Excel (.xlsx / .xls) file.\";\nreturn [{ json: { output: msg } }];"
+      },
+      "id": "1801a3d9-df95-4497-bffc-4f8c407e4135",
+      "name": "Unsupported File Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "AxFaeyYHwGHVWZ1T",
+          "cachedResultName": "Data QA Sessions"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "keyValue": "={{ $('Chat').item.json.sessionId }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "24a9a871-fa33-4c8f-b8c1-d59b7bc69b15",
+      "name": "Get Session",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        784
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "hasdata",
+              "leftValue": "={{ $json.dataset_json }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "58457aed-1037-49f1-b556-b9c62d166fdc",
+      "name": "Has Dataset?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        784
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a data-analysis planner. Convert a natural-language question into an ordered PLAN of analytical steps. Return JSON only. Do NOT compute any numbers yourself; only choose operations, columns and parameters.\n\nDataset profile (column names, types and stats): {{ $json.profile_json }}\n\nUser question: \"{{ $(\"Chat\").item.json.chatInput }}\"\n\nTop-level intent:\n- \"analyze\": one or more analytical steps are needed (this covers most questions, including complex multi-step ones). Put every step in the \"steps\" array, in the order they should be computed.\n- \"summary\": the user wants a broad overview of the whole dataset. Leave \"steps\" as an empty array.\n- \"clarify\": the question is ambiguous (e.g. \"highest value\" when several numeric columns exist). Set needs_clarification true and write clarification_question listing the candidate columns. Leave \"steps\" empty.\n- \"unsupported\": cannot be answered from this data with the available operations. Leave \"steps\" empty.\n\nEach step object needs an \"op\" plus a short human \"label\" describing it:\n- \"aggregate\": one metric on one numeric column. Set operation (sum/average/count/count_distinct/min/max/median), column, and optional filters.\n- \"groupby\": break a metric down by one or more category columns. Set column (the numeric metric), operation, and group_by (ARRAY of 1-2 category columns, e.g. [\"Region\",\"Category\"]).\n- \"topn\": like groupby but keep only the best/worst N. Also set top_n (e.g. 5) and sort_direction.\n- \"derived\": a computed metric from TWO columns (e.g. profit margin = gross_income/revenue). Set column, column_b, and derived_formula (ratio = column/column_b e.g. margin=profit/sales; difference = column-column_b; product; percent = column/column_b*100). Set operation (default sum) for how each column is aggregated. IMPORTANT: to compute a derived metric PER category (e.g. \"profit margin by product line\"), set group_by to that category (ARRAY). The engine aggregates each column independently within every group, then computes the derived metric per group and ranks the groups. Use top_n and sort_direction to keep/rank the best or worst groups.\n- \"compare\": period-over-period / trend. Set column (numeric metric), operation, date_column, and period (year/quarter/month/day). Produces the metric per period plus period-to-period change.\n- \"stats\": full descriptive statistics for one numeric column (count, min, max, range, mean, median, mode, std dev, variance, Q1, Q3, IQR, skewness). Set column, plus optional extra percentiles (ARRAY like [90,95]).\n- \"distribution\": how values spread. For a category column returns counts per value; for a numeric column returns a histogram. Set column. Use this for \"describe the distribution of X\".\n- \"correlation\": linear (Pearson) correlation between TWO numeric columns. Set column and column_b.\n- \"outliers\": detect outliers in one numeric column using the IQR method and return the offending rows. Set column.\n- \"extreme\": return the actual RECORD(S) with the highest or lowest value of a numeric column (not just the number). Set column, sort_direction (desc = highest, asc = lowest), and top_n (default 1). Use this whenever the user asks WHICH order/product/transaction/record had the highest/lowest X.\n\nRules:\n- Use ONLY column names that appear in the profile. Match user wording to the closest existing column.\n- MINIMALISM IS CRITICAL: plan ONLY the steps needed to answer the exact question. For a simple question (\"what is total sales?\") emit exactly ONE step. Do NOT add correlation, outliers, stats, distributions or extra breakdowns unless the user asked for them or asked for a broad/detailed analysis.\n- Only for broad requests (\"give me a detailed analysis\", \"analyze sales and profitability\") should you combine several complementary steps (e.g. KPIs -> group-by -> trend -> distribution -> outliers -> correlation). Even then, include only steps relevant to the data and question.\n- Break genuinely multi-part questions into ordered steps. Example: \"which region had highest sales in 2024 and its profit margin vs last year\" -> groupby (filtered to 2024) then derived (margin) then compare.\n- DERIVED METRICS (margin, rate, ratio, percentage, average per X, or any metric computed from two columns): ALWAYS use the \"derived\" op with column, column_b, derived_formula and operation. NEVER approximate a derived metric by ranking the numerator alone (e.g. do NOT use a plain groupby on gross_income to answer \"highest profit margin\"). margin = gross_income/revenue*100 (percent); average order value = sales/orders (ratio); discount amount = sales*discount (product).\n- WHEN A DERIVED METRIC IS REQUESTED AT A GROUPING LEVEL (e.g. \"profit margin BY product line\", \"conversion rate per region\"): use a SINGLE \"derived\" step and set group_by to that grouping column. The engine will aggregate each column independently for every group before computing and ranking the derived metric. Do NOT split this into a separate groupby of the numerator; that would rank the wrong thing.\n- For \"in 2024\" style constraints add a filter {column:<date column>, op:\"year\", value:\"2024\"}.\n- If required columns do not exist (e.g. no Profit column for a margin), use intent \"unsupported\" or \"clarify\" instead of inventing inputs.\n- OUTLIERS: when the user asks to \"identify/detect outliers\", \"flag anomalies\", or \"find unusual/extreme values\" in a numeric column, ALWAYS use the \"outliers\" op (IQR method) on that column as its own step. Do NOT answer an outlier request with only \"stats\" or \"distribution\"; those describe the spread but do not flag the offending rows. If the user wants BOTH descriptive statistics AND outliers, emit a \"stats\" step and a SEPARATE \"outliers\" step.\n- SUBSET CONSISTENCY (multi-step): when a step identifies a specific group/category/segment/region/product (via groupby, topn, derived or extreme) and a LATER step refers to \"that\", \"the selected\", \"the identified\", or the named group, that later step MUST be scoped to ONLY that subset. If the group is stated explicitly in the question (e.g. \"for the West region\"), add an eq filter {column:<category column>, op:\"eq\", value:\"<name>\"} to the later step. If the group is only known after the earlier step runs (e.g. \"the region with the highest sales, then its profit margin\"), set \"scope_to_previous_top\": true on the later step so the engine restricts it to the top group found by the previous step. NEVER let a later step reuse a whole-dataset aggregate as if it were the subset's value.\n- SUBGROUP vs OVERALL BENCHMARK: to compare a subgroup against an overall/company-wide benchmark, emit TWO independent steps — one scoped to the subgroup (via a filter or scope_to_previous_top) and one over the whole dataset (no filter). Compute each from the underlying records; never assume the subgroup value equals the overall value unless the calculations independently confirm it.\n- COLUMN SUBSTITUTION: use only column names present in the profile. If the EXACT variable the user asked for is not present, pick the closest available column and make the substitution visible by naming the real column in the step's \"label\" (e.g. label: \"Total revenue (using column: Sales)\"). Never silently substitute a semantically different column. If no reasonably-related column exists, use intent \"unsupported\".\n- Always fill every field. Unused fields: operation \"none\"; column \"\"; column_b \"\"; derived_formula \"none\"; group_by []; top_n 0; sort_direction \"desc\"; date_column \"\"; period \"none\"; percentiles []; filters []; scope_to_previous_top false.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "id": "c56b7622-cb1b-4b20-9783-caea73b2432a",
+      "name": "Interpret Question",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1120,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "id": "183da8ee-bc44-4022-9b4c-c8c0b9bba639",
+      "name": "Intent Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1136,
+        752
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "KqiwCGJ2vHDJVOSI",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"intent\":{\"type\":\"string\",\"enum\":[\"analyze\",\"summary\",\"clarify\",\"unsupported\"]},\"steps\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\"},\"op\":{\"type\":\"string\",\"enum\":[\"aggregate\",\"groupby\",\"topn\",\"derived\",\"compare\",\"stats\",\"distribution\",\"correlation\",\"outliers\",\"extreme\"]},\"operation\":{\"type\":\"string\",\"enum\":[\"sum\",\"average\",\"count\",\"count_distinct\",\"min\",\"max\",\"median\",\"stddev\",\"variance\",\"none\"]},\"column\":{\"type\":\"string\"},\"column_b\":{\"type\":\"string\"},\"derived_formula\":{\"type\":\"string\",\"enum\":[\"ratio\",\"difference\",\"product\",\"percent\",\"none\"]},\"group_by\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"top_n\":{\"type\":\"number\"},\"sort_direction\":{\"type\":\"string\",\"enum\":[\"desc\",\"asc\"]},\"date_column\":{\"type\":\"string\"},\"period\":{\"type\":\"string\",\"enum\":[\"year\",\"quarter\",\"month\",\"day\",\"none\"]},\"percentiles\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}},\"filters\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"column\":{\"type\":\"string\"},\"op\":{\"type\":\"string\",\"enum\":[\"eq\",\"neq\",\"gt\",\"gte\",\"lt\",\"lte\",\"contains\",\"year\"]},\"value\":{\"type\":\"string\"}},\"required\":[\"column\",\"op\",\"value\"]}},\"scope_to_previous_top\":{\"type\":\"boolean\"}},\"required\":[\"label\",\"op\",\"operation\",\"column\",\"column_b\",\"derived_formula\",\"group_by\",\"top_n\",\"sort_direction\",\"date_column\",\"period\",\"percentiles\",\"filters\"]}},\"needs_clarification\":{\"type\":\"boolean\"},\"clarification_question\":{\"type\":\"string\"}},\"required\":[\"intent\",\"steps\",\"needs_clarification\",\"clarification_question\"]}"
+      },
+      "id": "36eefb6b-2f81-4929-ba0f-29f5f3de1f6a",
+      "name": "Intent Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1264,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const spec = ($(\"Interpret Question\").first().json.output) || $input.first().json.output || {};\nconst sess = $(\"Get Session\").first().json;\nlet rows = [];\ntry { rows = JSON.parse(sess.dataset_json || \"[]\"); } catch (e) { rows = []; }\nlet profile = { columns: [] };\ntry { profile = JSON.parse(sess.profile_json || \"{}\"); } catch (e) {}\nconst question = $(\"Chat\").first().json.chatInput || \"\";\n\nfunction isEmpty(v) { return v === null || v === undefined || String(v).trim() === \"\"; }\nfunction toNum(v) { if (isEmpty(v)) return NaN; const s = String(v).replace(/[$,%\\s]/g, \"\").replace(/,/g, \"\"); const n = Number(s); return isFinite(n) ? n : NaN; }\nfunction fmt(n) { if (typeof n !== \"number\" || !isFinite(n)) return String(n); const r = Math.round(n * 100) / 100; return r.toLocaleString(\"en-US\"); }\nconst colNames = rows.length ? Object.keys(rows[0]) : (profile.columns || []).map(function (c) { return c.name; });\nfunction resolve(name) {\n  if (!name) return null;\n  const lc = String(name).toLowerCase().trim();\n  for (let i = 0; i < colNames.length; i++) { if (colNames[i].toLowerCase() === lc) return colNames[i]; }\n  for (let i = 0; i < colNames.length; i++) { if (colNames[i].toLowerCase().indexOf(lc) >= 0 || lc.indexOf(colNames[i].toLowerCase()) >= 0) return colNames[i]; }\n  return null;\n}\nfunction numericCols() { return (profile.columns || []).filter(function (c) { return c.type === \"numeric\"; }).map(function (c) { return c.name; }); }\nfunction categoryCols() { return (profile.columns || []).filter(function (c) { return c.type === \"text\" || c.type === \"boolean\"; }).map(function (c) { return c.name; }); }\nfunction dateColsList() { return (profile.columns || []).filter(function (c) { return c.type === \"date\"; }).map(function (c) { return c.name; }); }\n\nfunction parseDate(v) {\n  if (isEmpty(v)) return null;\n  const s = String(v).trim();\n  if (/^\\d{4}[-\\/]\\d{1,2}[-\\/]\\d{1,2}/.test(s)) { const t = Date.parse(s); return isNaN(t) ? null : new Date(t); }\n  const m = s.match(/^(\\d{1,2})[-\\/](\\d{1,2})[-\\/](\\d{4})/);\n  if (m) { let a = parseInt(m[1], 10), b = parseInt(m[2], 10), y = parseInt(m[3], 10); let day, mon; if (a > 12) { day = a; mon = b; } else if (b > 12) { mon = a; day = b; } else { day = a; mon = b; } const d = new Date(y, mon - 1, day); return isNaN(d.getTime()) ? null : d; }\n  const t = Date.parse(s); return isNaN(t) ? null : new Date(t);\n}\nfunction periodKey(d, period) {\n  if (!d) return \"(blank)\";\n  const y = d.getFullYear(); const mo = d.getMonth() + 1;\n  if (period === \"year\") return String(y);\n  if (period === \"quarter\") return y + \"-Q\" + (Math.floor((mo - 1) / 3) + 1);\n  if (period === \"month\") return y + \"-\" + (mo < 10 ? \"0\" + mo : mo);\n  if (period === \"day\") return y + \"-\" + (mo < 10 ? \"0\" + mo : mo) + \"-\" + ((d.getDate() < 10 ? \"0\" : \"\") + d.getDate());\n  return String(y);\n}\n\nfunction aggregate(values, operation) {\n  const nums = values.map(toNum).filter(function (n) { return !isNaN(n); });\n  if (operation === \"count\") return values.filter(function (v) { return !isEmpty(v); }).length;\n  if (operation === \"count_distinct\") { const d = {}; values.forEach(function (v) { if (!isEmpty(v)) d[String(v)] = true; }); return Object.keys(d).length; }\n  if (!nums.length) return null;\n  if (operation === \"sum\") return nums.reduce(function (a, b) { return a + b; }, 0);\n  if (operation === \"average\") return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;\n  if (operation === \"min\") return Math.min.apply(null, nums);\n  if (operation === \"max\") return Math.max.apply(null, nums);\n  if (operation === \"median\") { const s = nums.slice().sort(function (a, b) { return a - b; }); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }\n  if (operation === \"variance\") { const mean = nums.reduce(function (a, b) { return a + b; }, 0) / nums.length; return nums.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / nums.length; }\n  if (operation === \"stddev\") { const mean = nums.reduce(function (a, b) { return a + b; }, 0) / nums.length; return Math.sqrt(nums.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / nums.length); }\n  return null;\n}\nfunction percentile(nums, p) { if (!nums.length) return null; const s = nums.slice().sort(function (a, b) { return a - b; }); const idx = (p / 100) * (s.length - 1); const lo = Math.floor(idx), hi = Math.ceil(idx); if (lo === hi) return s[lo]; return s[lo] + (s[hi] - s[lo]) * (idx - lo); }\nfunction pearson(xs, ys) { const n = Math.min(xs.length, ys.length); const px = [], py = []; for (let i = 0; i < n; i++) { const a = toNum(xs[i]), b = toNum(ys[i]); if (!isNaN(a) && !isNaN(b)) { px.push(a); py.push(b); } } if (px.length < 2) return null; const mx = px.reduce(function (a, b) { return a + b; }, 0) / px.length; const my = py.reduce(function (a, b) { return a + b; }, 0) / py.length; let num = 0, dx = 0, dy = 0; for (let i = 0; i < px.length; i++) { const a = px[i] - mx, b = py[i] - my; num += a * b; dx += a * a; dy += b * b; } if (dx === 0 || dy === 0) return null; return num / Math.sqrt(dx * dy); }\nfunction modeOf(nums) { const c = {}; let best = null, bestCount = 0; for (let i = 0; i < nums.length; i++) { const k = nums[i]; c[k] = (c[k] || 0) + 1; if (c[k] > bestCount) { bestCount = c[k]; best = k; } } return bestCount > 1 ? best : null; }\nfunction skewness(nums) { const n = nums.length; if (n < 3) return null; const mean = nums.reduce(function (a, b) { return a + b; }, 0) / n; const sd = Math.sqrt(nums.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / n); if (sd === 0) return null; return nums.reduce(function (a, b) { return a + Math.pow((b - mean) / sd, 3); }, 0) / n; }\nfunction pickIdCols(metric) { const out = []; const dates = dateColsList(); const cats = categoryCols(); for (let i = 0; i < dates.length && out.length < 2; i++) { if (dates[i] !== metric) out.push(dates[i]); } for (let i = 0; i < cats.length && out.length < 5; i++) { if (cats[i] !== metric && out.indexOf(cats[i]) < 0) out.push(cats[i]); } return out; }\nfunction pickRowFacts(r, cols) { const o = {}; cols.forEach(function (c) { o[c] = r[c]; }); return o; }\n\nfunction applyFilters(data, filters) {\n  if (!filters || !filters.length) return data;\n  return data.filter(function (row) {\n    for (let f = 0; f < filters.length; f++) {\n      const col = resolve(filters[f].column); if (!col) continue;\n      const raw = row[col]; const op = filters[f].op; const val = filters[f].value;\n      if (op === \"year\") { const d = parseDate(raw); if (!d || String(d.getFullYear()) !== String(val)) return false; continue; }\n      if (op === \"contains\") { if (String(raw).toLowerCase().indexOf(String(val).toLowerCase()) < 0) return false; continue; }\n      const rn = toNum(raw); const vn = toNum(val); const bothNum = !isNaN(rn) && !isNaN(vn);\n      if (op === \"eq\") { if (bothNum ? rn !== vn : String(raw).toLowerCase() !== String(val).toLowerCase()) return false; }\n      else if (op === \"neq\") { if (bothNum ? rn === vn : String(raw).toLowerCase() === String(val).toLowerCase()) return false; }\n      else if (op === \"gt\") { if (!(rn > vn)) return false; }\n      else if (op === \"gte\") { if (!(rn >= vn)) return false; }\n      else if (op === \"lt\") { if (!(rn < vn)) return false; }\n      else if (op === \"lte\") { if (!(rn <= vn)) return false; }\n    }\n    return true;\n  });\n}\n\nfunction stepResult(label, answer, table_md, facts) { return { label: label || \"\", answer: answer || \"\", table_md: table_md || \"\", facts: facts || {} }; }\n\nfunction runStep(step) {\n  const label = step.label || step.op || \"step\";\n  const data = applyFilters(rows, step.filters);\n  const op = step.op;\n\n  if (op === \"aggregate\") {\n    const metric = resolve(step.column);\n    if (!metric) return stepResult(label, \"Could not find a column matching \\\"\" + step.column + \"\\\". Numeric columns: \" + numericCols().join(\", \") + \".\", \"\", { error: \"missing_column\" });\n    const operation = (step.operation && step.operation !== \"none\") ? step.operation : \"sum\";\n    const val = aggregate(data.map(function (r) { return r[metric]; }), operation);\n    if (val === null) return stepResult(label, \"Could not compute \" + operation + \" on \" + metric + \".\", \"\", { error: \"no_values\" });\n    const lbl = { sum: \"Total\", average: \"Average\", count: \"Count of\", count_distinct: \"Distinct count of\", min: \"Minimum\", max: \"Maximum\", median: \"Median\" }[operation] || operation;\n    return stepResult(label, \"**\" + lbl + \" \" + metric + \":** \" + fmt(val), \"\", { operation: operation, column: metric, value: val, rowsConsidered: data.length });\n  }\n\n  if (op === \"groupby\" || op === \"topn\") {\n    if (step.derived_formula && step.derived_formula !== \"none\" && resolve(step.column_b)) { return runStep(Object.assign({}, step, { op: \"derived\" })); }\n    const cats = (step.group_by || []).map(resolve).filter(function (c) { return c; });\n    const metric = resolve(step.column);\n    if (!cats.length) return stepResult(label, \"Could not find a category column to group by.\", \"\", { error: \"missing_group\" });\n    if (!metric) return stepResult(label, \"Could not find a numeric column matching \\\"\" + step.column + \"\\\".\", \"\", { error: \"missing_column\" });\n    const operation = (step.operation && step.operation !== \"none\") ? step.operation : \"sum\";\n    const groups = {};\n    data.forEach(function (r) { const k = cats.map(function (c) { return isEmpty(r[c]) ? \"(blank)\" : String(r[c]); }).join(\" | \"); if (!groups[k]) groups[k] = []; groups[k].push(r[metric]); });\n    let arr = Object.keys(groups).map(function (k) { return { k: k, v: aggregate(groups[k], operation) }; }).filter(function (x) { return x.v !== null; });\n    const dir = step.sort_direction === \"asc\" ? 1 : -1;\n    arr.sort(function (a, b) { return (a.v - b.v) * dir; });\n    const limit = (op === \"topn\" && step.top_n && step.top_n > 0) ? step.top_n : arr.length;\n    const top = arr.slice(0, limit);\n    let t = \"| \" + cats.join(\" / \") + \" | \" + operation + \" of \" + metric + \" |\\n| --- | ---: |\\n\";\n    top.forEach(function (x) { t += \"| \" + x.k + \" | \" + fmt(x.v) + \" |\\n\"; });\n    const best = top.length ? top[0] : null;\n    const answer = best ? (\"**\" + best.k + \"** has the \" + (dir < 0 ? \"highest\" : \"lowest\") + \" \" + operation + \" of \" + metric + \" (\" + fmt(best.v) + \").\") : \"No data to group.\";\n    return stepResult(label, answer, t, { groups: top.slice(0, 20) });\n  }\n\n  if (op === \"derived\") {\n    const a = resolve(step.column); const b = resolve(step.column_b);\n    if (!a || !b) return stepResult(label, \"A derived metric needs two valid columns. Numeric columns: \" + numericCols().join(\", \") + \".\", \"\", { error: \"missing_column\" });\n    const operation = (step.operation && step.operation !== \"none\") ? step.operation : \"sum\";\n    const formula = step.derived_formula || \"ratio\";\n    let sym = \"\";\n    if (formula === \"ratio\") sym = a + \" / \" + b;\n    else if (formula === \"percent\") sym = a + \" / \" + b + \" * 100\";\n    else if (formula === \"difference\") sym = a + \" - \" + b;\n    else if (formula === \"product\") sym = a + \" * \" + b;\n    function combine(av, bv) {\n      if (av === null || bv === null) return null;\n      if (formula === \"ratio\") return bv === 0 ? null : av / bv;\n      if (formula === \"percent\") return bv === 0 ? null : (av / bv) * 100;\n      if (formula === \"difference\") return av - bv;\n      if (formula === \"product\") return av * bv;\n      return null;\n    }\n    const cats = (step.group_by || []).map(resolve).filter(function (c) { return c; });\n    if (cats.length) {\n      const groups = {};\n      data.forEach(function (r) { const k = cats.map(function (c) { return isEmpty(r[c]) ? \"(blank)\" : String(r[c]); }).join(\" | \"); if (!groups[k]) groups[k] = { a: [], b: [] }; groups[k].a.push(r[a]); groups[k].b.push(r[b]); });\n      let arr = Object.keys(groups).map(function (k) { const av = aggregate(groups[k].a, operation); const bv = aggregate(groups[k].b, operation); return { k: k, av: av, bv: bv, v: combine(av, bv) }; }).filter(function (x) { return x.v !== null && isFinite(x.v); });\n      if (!arr.length) return stepResult(label, \"Could not compute \" + sym + \" for any group.\", \"\", { error: \"no_values\" });\n      const dir = step.sort_direction === \"asc\" ? 1 : -1;\n      arr.sort(function (x, y) { return (x.v - y.v) * dir; });\n      const limit = (step.top_n && step.top_n > 0) ? step.top_n : arr.length;\n      const top = arr.slice(0, limit);\n      const unit = formula === \"percent\" ? \"%\" : \"\";\n      let t = \"| \" + cats.join(\" / \") + \" | \" + operation + \" of \" + a + \" | \" + operation + \" of \" + b + \" | \" + label + \" |\\n| --- | ---: | ---: | ---: |\\n\";\n      top.forEach(function (x) { t += \"| \" + x.k + \" | \" + fmt(x.av) + \" | \" + fmt(x.bv) + \" | \" + fmt(x.v) + unit + \" |\\n\"; });\n      const best = top[0];\n      const answer = \"**\" + best.k + \"** has the \" + (dir < 0 ? \"highest\" : \"lowest\") + \" \" + label + \" (\" + fmt(best.v) + unit + \"), computed as \" + sym + \" independently per group.\";\n      return stepResult(label, answer, t, { formula: formula, a: a, b: b, groupBy: cats, groups: top.slice(0, 20).map(function (x) { return { group: x.k, aValue: x.av, bValue: x.bv, value: x.v }; }) });\n    }\n    const av = aggregate(data.map(function (r) { return r[a]; }), operation);\n    const bv = aggregate(data.map(function (r) { return r[b]; }), operation);\n    if (av === null || bv === null) return stepResult(label, \"Could not compute the derived metric.\", \"\", { error: \"no_values\" });\n    const val = combine(av, bv);\n    if (val === null) return stepResult(label, \"Could not compute \" + sym + \" (division by zero or no data).\", \"\", { error: \"compute\" });\n    const disp = formula === \"percent\" ? (fmt(val) + \"%\") : fmt(val);\n    return stepResult(label, \"**\" + label + \":** \" + disp + \" (\" + sym + \", \" + operation + \"s)\", \"\", { formula: formula, a: a, b: b, aValue: av, bValue: bv, value: val });\n  }\n\n  if (op === \"compare\") {\n    const metric = resolve(step.column); const dcol = resolve(step.date_column) || dateColsList()[0];\n    const period = (step.period && step.period !== \"none\") ? step.period : \"year\";\n    if (!metric) return stepResult(label, \"Could not find a numeric column matching \\\"\" + step.column + \"\\\".\", \"\", { error: \"missing_column\" });\n    if (!dcol) return stepResult(label, \"Could not find a date column to compare over time.\", \"\", { error: \"missing_date\" });\n    const operation = (step.operation && step.operation !== \"none\") ? step.operation : \"sum\";\n    const groups = {};\n    data.forEach(function (r) { const k = periodKey(parseDate(r[dcol]), period); if (!groups[k]) groups[k] = []; groups[k].push(r[metric]); });\n    const keys = Object.keys(groups).filter(function (k) { return k !== \"(blank)\"; }).sort();\n    let t = \"| Period | \" + operation + \" of \" + metric + \" | Change | % Change |\\n| --- | ---: | ---: | ---: |\\n\";\n    let prev = null; const series = [];\n    keys.forEach(function (k) { const v = aggregate(groups[k], operation); let ch = \"-\", pc = \"-\"; if (prev !== null && v !== null) { const d = v - prev; ch = (d >= 0 ? \"+\" : \"\") + fmt(d); pc = prev === 0 ? \"-\" : ((d / prev * 100 >= 0 ? \"+\" : \"\") + fmt(d / prev * 100) + \"%\"); } t += \"| \" + k + \" | \" + fmt(v) + \" | \" + ch + \" | \" + pc + \" |\\n\"; series.push({ period: k, value: v }); prev = v; });\n    let answer = \"Trend of \" + operation + \" \" + metric + \" by \" + period + \".\";\n    if (series.length >= 2) { const first = series[0], last = series[series.length - 1]; if (first.value) { const g = (last.value - first.value) / first.value * 100; answer = metric + \" went from \" + fmt(first.value) + \" (\" + first.period + \") to \" + fmt(last.value) + \" (\" + last.period + \"), a \" + (g >= 0 ? \"+\" : \"\") + fmt(g) + \"% change overall.\"; } }\n    return stepResult(label, answer, t, { series: series });\n  }\n\n  if (op === \"stats\") {\n    const metric = resolve(step.column);\n    if (!metric) return stepResult(label, \"Could not find a numeric column matching \\\"\" + step.column + \"\\\".\", \"\", { error: \"missing_column\" });\n    const nums = data.map(function (r) { return r[metric]; }).map(toNum).filter(function (n) { return !isNaN(n); });\n    if (!nums.length) return stepResult(label, \"No numeric values found in \" + metric + \".\", \"\", { error: \"no_values\" });\n    const mean = nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;\n    const variance = nums.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / nums.length;\n    const sd = Math.sqrt(variance);\n    const sorted = nums.slice().sort(function (a, b) { return a - b; });\n    const med = sorted.length % 2 ? sorted[Math.floor(sorted.length / 2)] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;\n    const q1 = percentile(nums, 25), q3 = percentile(nums, 75); const iqr = q3 - q1;\n    const mode = modeOf(nums); const skew = skewness(nums);\n    let t = \"| Statistic | Value |\\n| --- | ---: |\\n\";\n    t += \"| Count | \" + fmt(nums.length) + \" |\\n| Min | \" + fmt(sorted[0]) + \" |\\n| Max | \" + fmt(sorted[sorted.length - 1]) + \" |\\n| Range | \" + fmt(sorted[sorted.length - 1] - sorted[0]) + \" |\\n| Mean | \" + fmt(mean) + \" |\\n| Median | \" + fmt(med) + \" |\\n\";\n    if (mode !== null) t += \"| Mode | \" + fmt(mode) + \" |\\n\";\n    t += \"| Std Dev | \" + fmt(sd) + \" |\\n| Variance | \" + fmt(variance) + \" |\\n| Q1 (P25) | \" + fmt(q1) + \" |\\n| Q3 (P75) | \" + fmt(q3) + \" |\\n| IQR | \" + fmt(iqr) + \" |\\n\";\n    if (skew !== null) t += \"| Skewness | \" + fmt(skew) + \" |\\n\";\n    const ps = (step.percentiles && step.percentiles.length) ? step.percentiles : [];\n    ps.forEach(function (p) { t += \"| P\" + p + \" | \" + fmt(percentile(nums, p)) + \" |\\n\"; });\n    return stepResult(label, \"Distribution statistics for **\" + metric + \"** (mean \" + fmt(mean) + \", median \" + fmt(med) + \", std dev \" + fmt(sd) + \").\", t, { mean: mean, median: med, mode: mode, stddev: sd, variance: variance, min: sorted[0], max: sorted[sorted.length - 1], range: sorted[sorted.length - 1] - sorted[0], q1: q1, q3: q3, iqr: iqr, skewness: skew });\n  }\n\n  if (op === \"outliers\") {\n    const metric = resolve(step.column);\n    if (!metric) return stepResult(label, \"Could not find a numeric column matching \\\"\" + step.column + \"\\\".\", \"\", { error: \"missing_column\" });\n    const pairs = data.map(function (r) { return { r: r, v: toNum(r[metric]) }; }).filter(function (x) { return !isNaN(x.v); });\n    if (!pairs.length) return stepResult(label, \"No numeric values found in \" + metric + \".\", \"\", { error: \"no_values\" });\n    const nums = pairs.map(function (x) { return x.v; });\n    const q1 = percentile(nums, 25), q3 = percentile(nums, 75); const iqr = q3 - q1;\n    const lo = q1 - 1.5 * iqr, hi = q3 + 1.5 * iqr;\n    const idCols = pickIdCols(metric);\n    const outs = pairs.filter(function (x) { return x.v < lo || x.v > hi; }).sort(function (a, b) { return b.v - a.v; });\n    const shown = outs.slice(0, 15);\n    let t = \"| \" + (idCols.join(\" | \") ? idCols.join(\" | \") + \" | \" : \"\") + metric + \" | Flag |\\n| \" + idCols.map(function () { return \"---\"; }).join(\" | \") + (idCols.length ? \" | \" : \"\") + \"---: | --- |\\n\";\n    shown.forEach(function (x) { const cells = idCols.map(function (c) { return String(x.r[c]); }); t += \"| \" + (cells.length ? cells.join(\" | \") + \" | \" : \"\") + fmt(x.v) + \" | \" + (x.v > hi ? \"high\" : \"low\") + \" |\\n\"; });\n    const answer = \"Found **\" + outs.length + \"** potential outlier(s) in \" + metric + \" using the IQR method (bounds: below \" + fmt(lo) + \" or above \" + fmt(hi) + \"; Q1=\" + fmt(q1) + \", Q3=\" + fmt(q3) + \", IQR=\" + fmt(iqr) + \").\" + (outs.length > shown.length ? \" Showing the top \" + shown.length + \".\" : \"\");\n    return stepResult(label, answer, outs.length ? t : \"\", { method: \"IQR (1.5x)\", q1: q1, q3: q3, iqr: iqr, lowerBound: lo, upperBound: hi, outlierCount: outs.length });\n  }\n\n  if (op === \"extreme\") {\n    const metric = resolve(step.column);\n    if (!metric) return stepResult(label, \"Could not find a numeric column matching \\\"\" + step.column + \"\\\".\", \"\", { error: \"missing_column\" });\n    const pairs = data.map(function (r) { return { r: r, v: toNum(r[metric]) }; }).filter(function (x) { return !isNaN(x.v); });\n    if (!pairs.length) return stepResult(label, \"No numeric values found in \" + metric + \".\", \"\", { error: \"no_values\" });\n    const wantMin = step.sort_direction === \"asc\" || step.operation === \"min\";\n    pairs.sort(function (a, b) { return wantMin ? (a.v - b.v) : (b.v - a.v); });\n    const n = (step.top_n && step.top_n > 0) ? step.top_n : 1;\n    const picks = pairs.slice(0, n);\n    const idCols = pickIdCols(metric);\n    let t = \"| \" + (idCols.join(\" | \") ? idCols.join(\" | \") + \" | \" : \"\") + metric + \" |\\n| \" + idCols.map(function () { return \"---\"; }).join(\" | \") + (idCols.length ? \" | \" : \"\") + \"---: |\\n\";\n    picks.forEach(function (x) { const cells = idCols.map(function (c) { return String(x.r[c]); }); t += \"| \" + (cells.length ? cells.join(\" | \") + \" | \" : \"\") + fmt(x.v) + \" |\\n\"; });\n    const top = picks[0];\n    const answer = \"The record with the \" + (wantMin ? \"lowest\" : \"highest\") + \" \" + metric + \" is **\" + fmt(top.v) + \"**\" + (idCols.length ? \" (\" + idCols.map(function (c) { return c + \": \" + top.r[c]; }).join(\", \") + \")\" : \"\") + \".\";\n    return stepResult(label, answer, t, { direction: wantMin ? \"min\" : \"max\", value: top.v, row: pickRowFacts(top.r, idCols) });\n  }\n\n  if (op === \"distribution\") {\n    const metric = resolve(step.column);\n    if (!metric) return stepResult(label, \"Could not find a column matching \\\"\" + step.column + \"\\\".\", \"\", { error: \"missing_column\" });\n    const colInfo = (profile.columns || []).filter(function (c) { return c.name === metric; })[0];\n    const isNumeric = colInfo && colInfo.type === \"numeric\";\n    if (isNumeric) {\n      const nums = data.map(function (r) { return r[metric]; }).map(toNum).filter(function (n) { return !isNaN(n); });\n      if (!nums.length) return stepResult(label, \"No numeric values found in \" + metric + \".\", \"\", { error: \"no_values\" });\n      const mn = Math.min.apply(null, nums), mx = Math.max.apply(null, nums);\n      const bins = 8; const width = (mx - mn) / bins || 1; const counts = [];\n      for (let i = 0; i < bins; i++) counts.push(0);\n      nums.forEach(function (n) { let idx = Math.floor((n - mn) / width); if (idx >= bins) idx = bins - 1; if (idx < 0) idx = 0; counts[idx]++; });\n      let t = \"| Range | Count |\\n| --- | ---: |\\n\";\n      for (let i = 0; i < bins; i++) { const lo = mn + i * width, hi = mn + (i + 1) * width; const lb = (i === bins - 1) ? (\"[\" + fmt(lo) + \" - \" + fmt(hi) + \"]\") : (\"[\" + fmt(lo) + \" - \" + fmt(hi) + \")\"); t += \"| \" + lb + \" | \" + fmt(counts[i]) + \" |\\n\"; }\n      return stepResult(label, \"Histogram of **\" + metric + \"** across \" + bins + \" contiguous, non-overlapping bins from \" + fmt(mn) + \" to \" + fmt(mx) + \" (each value counted once; bins are [low, high), final bin inclusive).\", t, { min: mn, max: mx, binWidth: width, counts: counts });\n    }\n    const groups = {};\n    data.forEach(function (r) { const k = isEmpty(r[metric]) ? \"(blank)\" : String(r[metric]); groups[k] = (groups[k] || 0) + 1; });\n    let arr = Object.keys(groups).map(function (k) { return { k: k, v: groups[k] }; }).sort(function (a, b) { return b.v - a.v; }).slice(0, 20);\n    let t = \"| \" + metric + \" | Count |\\n| --- | ---: |\\n\";\n    arr.forEach(function (x) { t += \"| \" + x.k + \" | \" + fmt(x.v) + \" |\\n\"; });\n    return stepResult(label, \"Value counts for **\" + metric + \"** (top \" + arr.length + \").\", t, { counts: arr });\n  }\n\n  if (op === \"correlation\") {\n    const a = resolve(step.column); const b = resolve(step.column_b);\n    if (!a || !b) return stepResult(label, \"Correlation needs two numeric columns. Numeric columns: \" + numericCols().join(\", \") + \".\", \"\", { error: \"missing_column\" });\n    const r = pearson(data.map(function (x) { return x[a]; }), data.map(function (x) { return x[b]; }));\n    if (r === null) return stepResult(label, \"Could not compute correlation between \" + a + \" and \" + b + \".\", \"\", { error: \"compute\" });\n    let strength = Math.abs(r) < 0.2 ? \"very weak\" : Math.abs(r) < 0.4 ? \"weak\" : Math.abs(r) < 0.6 ? \"moderate\" : Math.abs(r) < 0.8 ? \"strong\" : \"very strong\";\n    const dirn = r >= 0 ? \"positive\" : \"negative\";\n    return stepResult(label, \"Correlation between **\" + a + \"** and **\" + b + \"** is **\" + fmt(r) + \"** (\" + strength + \" \" + dirn + \").\", \"\", { r: r, a: a, b: b });\n  }\n\n  return stepResult(label, \"Unknown operation: \" + op, \"\", { error: \"unknown_op\" });\n}\n\nfunction richSummary() {\n  const nCols = numericCols(); const cats = categoryCols();\n  let md = \"### Dataset Overview\\n\\n| Metric | Value |\\n| --- | ---: |\\n\";\n  md += \"| Rows | \" + fmt(rows.length) + \" |\\n| Columns | \" + fmt(colNames.length) + \" |\\n\";\n  md += \"| Numeric columns | \" + (nCols.join(\", \") || \"none\") + \" |\\n| Category columns | \" + (cats.slice(0, 8).join(\", \") || \"none\") + \" |\\n\";\n  let md2 = \"\";\n  if (nCols.length) {\n    md2 += \"\\n### Numeric Columns\\n\\n| Column | Sum | Mean | Median | Std Dev | Min | Max |\\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |\\n\";\n    nCols.forEach(function (c) {\n      const vals = rows.map(function (r) { return r[c]; });\n      md2 += \"| \" + c + \" | \" + fmt(aggregate(vals, \"sum\")) + \" | \" + fmt(aggregate(vals, \"average\")) + \" | \" + fmt(aggregate(vals, \"median\")) + \" | \" + fmt(aggregate(vals, \"stddev\")) + \" | \" + fmt(aggregate(vals, \"min\")) + \" | \" + fmt(aggregate(vals, \"max\")) + \" |\\n\";\n    });\n  }\n  let md3 = \"\";\n  if (cats.length && nCols.length) {\n    const cat = cats[0]; const metric = nCols[0]; const groups = {};\n    rows.forEach(function (r) { const k = isEmpty(r[cat]) ? \"(blank)\" : String(r[cat]); const n = toNum(r[metric]); if (!isNaN(n)) groups[k] = (groups[k] || 0) + n; });\n    const arr = Object.keys(groups).map(function (k) { return { k: k, v: groups[k] }; }).sort(function (a, b) { return b.v - a.v; }).slice(0, 5);\n    md3 += \"\\n### Top \" + cat + \" by \" + metric + \"\\n\\n| \" + cat + \" | \" + metric + \" |\\n| --- | ---: |\\n\";\n    arr.forEach(function (x) { md3 += \"| \" + x.k + \" | \" + fmt(x.v) + \" |\\n\"; });\n  }\n  return md + md2 + md3;\n}\n\nfunction out(status, answer, table_md, facts) { return [{ json: { status: status, question: question, answer: answer || \"\", table_md: table_md || \"\", facts: JSON.stringify(facts || {}) } }]; }\n\nif (!sess.dataset_json) { return out(\"error\", \"No dataset is loaded for this conversation.\", \"\", {}); }\n\nif (spec.needs_clarification || spec.intent === \"clarify\") {\n  return out(\"clarify\", spec.clarification_question || \"Could you clarify which column you would like me to analyze?\", \"\", { numericColumns: numericCols(), categoryColumns: categoryCols() });\n}\nif (spec.intent === \"unsupported\") {\n  return out(\"unsupported\", \"\", \"\", { numericColumns: numericCols(), categoryColumns: categoryCols() });\n}\nif (spec.intent === \"summary\") {\n  return out(\"ok\", \"Here is a summary of the dataset.\", richSummary(), { rows: rows.length, columns: colNames.length });\n}\n\nconst steps = (spec.steps && spec.steps.length) ? spec.steps : [];\nif (!steps.length) { return out(\"ok\", \"Here is a summary of the dataset.\", richSummary(), { rows: rows.length, columns: colNames.length }); }\n\nconst results = [];\nfor (let i = 0; i < steps.length; i++) {\n  let step = steps[i];\n  if (step.scope_to_previous_top && i > 0) {\n    const prevStep = steps[i - 1] || {};\n    const pf = (results[i - 1] && results[i - 1].facts) ? results[i - 1].facts : {};\n    let cats = [], topKey = null;\n    if (pf.groupBy && pf.groupBy.length && pf.groups && pf.groups.length) { cats = pf.groupBy; topKey = pf.groups[0].group; }\n    else if (prevStep.group_by && prevStep.group_by.length && pf.groups && pf.groups.length) { cats = prevStep.group_by.map(resolve).filter(function (c) { return c; }); topKey = pf.groups[0].k; }\n    if (cats.length && topKey != null) {\n      const parts = String(topKey).split(\" | \");\n      const inj = [];\n      cats.forEach(function (c, idx) { if (parts[idx] !== undefined && parts[idx] !== \"(blank)\") inj.push({ column: c, op: \"eq\", value: parts[idx] }); });\n      if (inj.length) step = Object.assign({}, step, { filters: (step.filters || []).concat(inj) });\n    }\n  }\n  results.push(runStep(step));\n}\n\nlet answer = \"\";\nlet tables = \"\";\nfor (let i = 0; i < results.length; i++) {\n  const r = results[i];\n  answer += (steps.length > 1 ? ((i + 1) + \". \") : \"\") + r.answer + \"\\n\";\n  if (r.table_md) { tables += \"\\n### \" + r.label + \"\\n\\n\" + r.table_md; }\n}\nconst factsArr = results.map(function (r) { return { label: r.label, facts: r.facts }; });\nreturn out(\"ok\", answer.trim(), tables.trim(), { steps: factsArr });"
+      },
+      "id": "b9dcac95-1411-4d38-aec1-23748fe86282",
+      "name": "Compute Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a data analyst presenting results to a business user in clear Markdown.\n\nUser question: \"{{ $json.question }}\"\nResult status: {{ $json.status }}\nComputed answer(s): \n{{ $json.answer }}\nSupporting tables (Markdown, may be empty): \n{{ $json.table_md }}\nFacts (JSON): {{ $json.facts }}\n\nInstructions:\n- CRITICAL: Never invent, recompute, or change any number. Use ONLY the values in the computed answer(s) and the supporting tables verbatim. If a value is not provided, do not state it.\n- Keep it CONCISE. Match the depth of the response to the question: a simple question gets a short answer, not a full report.\n- If status is \"ok\", use this structure:\n  **Answer** — a direct answer to the question (for multi-step analysis, a short numbered list of the findings).\n  **Results** — include every supporting table exactly as given, under its heading. Omit this section only if there were no tables.\n  **Key Insight** — 1-3 concise business observations based STRICTLY on the calculated results. Omit for trivial single-value answers where no insight adds value.\n- Business interpretation must be evidence-based. Use cautious language: \"This suggests...\", \"This may indicate...\", \"The data shows...\", \"Further investigation would be required to determine the cause.\" Never claim causation from correlation. Do not speculate about causes not visible in the data.\n- If status is \"clarify\": ask the clarification question conversationally.\n- If status is \"unsupported\": explain politely that this specific question cannot be answered with the available data/operations, state what is missing if relevant, and suggest concrete questions that can be answered (aggregates, group-by, top-N, derived metrics, period comparisons, statistics, distributions, outliers, correlations).\n- COLUMN SUBSTITUTION DISCLOSURE: if a step label or the facts show a column name that clearly differs from the variable the user named (the analysis used the closest available column), state that substitution explicitly at the START of the Answer (e.g. \"Note: the dataset has no 'profit' column, so this uses 'gross_income'.\") before giving the result.\n- If status is \"error\": relay the problem clearly.\n- Do not expose internal steps, tool calls, or implementation details.",
+        "batching": {}
+      },
+      "id": "f6c32095-a427-4338-92d0-60a45cbabea9",
+      "name": "Explain Result",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1696,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "id": "fa9f3879-9f45-4319-896f-5088719708e3",
+      "name": "Explain Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1776,
+        864
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "KqiwCGJ2vHDJVOSI",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst text = j.text || j.output || j.response || \"\";\nreturn [{ json: { output: text } }];"
+      },
+      "id": "52698fa5-2a50-4c06-831f-953fab38d28b",
+      "name": "Final Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { output: \"\\uD83D\\uDCC1 I don\\u2019t have a dataset for this conversation yet. Please upload a CSV or Excel file first, then ask your question.\" } }];"
+      },
+      "id": "c6787bb2-e25e-401a-a24b-b5f51e0e2fc0",
+      "name": "No Data Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        928
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat": {
+      "main": [
+        [
+          {
+            "node": "Inspect Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inspect Input": {
+      "main": [
+        [
+          {
+            "node": "Has File?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has File?": {
+      "main": [
+        [
+          {
+            "node": "File Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Type": {
+      "main": [
+        [
+          {
+            "node": "Parse CSV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse XLSX",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse XLS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unsupported File Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse CSV": {
+      "main": [
+        [
+          {
+            "node": "Build Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Profile": {
+      "main": [
+        [
+          {
+            "node": "Store Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Session": {
+      "main": [
+        [
+          {
+            "node": "Upload Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse XLSX": {
+      "main": [
+        [
+          {
+            "node": "Build Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse XLS": {
+      "main": [
+        [
+          {
+            "node": "Build Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Session": {
+      "main": [
+        [
+          {
+            "node": "Has Dataset?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Dataset?": {
+      "main": [
+        [
+          {
+            "node": "Interpret Question",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Data Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpret Question": {
+      "main": [
+        [
+          {
+            "node": "Compute Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Interpret Question",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Interpret Question",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Result": {
+      "main": [
+        [
+          {
+            "node": "Explain Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Explain Result": {
+      "main": [
+        [
+          {
+            "node": "Final Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Explain Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Explain Result",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9b56eddb-fc3f-485c-8326-40bb87083827",
+  "meta": {
+    "instanceId": "37178ec5bdd5782fc71407445a358e322ac40a9aac1ece11c7136c01431ab302"
+  },
+  "nodeGroups": [],
+  "id": "bx8K9xgW4pftnD4o",
+  "tags": []
+}
