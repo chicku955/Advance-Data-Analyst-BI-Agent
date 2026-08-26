@@ -181,7 +181,7 @@ change a number.
 
 ### Import the n8n workflow
 1. In n8n, go to Workflows → Import from File
-2. Select `data-qa.workflow.json` from this repo.
+2. Select InsightFlow AI — Advanced Data Analysis & Business Insights Agent.json from this repo.
 
 ### Configure API credentials
 1. Create a Google Gemini (PaLM) API credential in n8n with your own API key.
