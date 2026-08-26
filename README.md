@@ -1,4 +1,4 @@
-AI Data Analysis Agent
+## InsightFlow AI — Advanced Data Analysis & Business Insights Agent
 
 A chat-based AI agent, built in [n8n](https://n8n.io), that lets you upload a
 CSV/Excel file and ask questions about it in plain English. It plans the
