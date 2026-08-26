@@ -32,7 +32,7 @@ combine LLM planning with deterministic computation in n8n.
   lookups, hand-written formulas).
 - People think in questions ("which region grew the most?"), not in
   spreadsheet operations.
-- Real analysis needs **calculations, comparisons, rankings, and insights**,
+- Real analysis needs calculations, comparisons, rankings, and insights,
   not just a chat model guessing numbers — LLMs are unreliable at arithmetic.
 
 ---
@@ -272,7 +272,7 @@ change a number.
 
 Steps a reviewer can follow:
 
-1. Import `data-qa.workflow.json` into an n8n instance.
+1. Import InsightFlow AI — Advanced Data Analysis & Business Insights Agent.json into an n8n instance.
 2. Create a Google Gemini credential and select it on Intent Model and
    Explain Model
 3. Create the Data QA Sessions Data Table and link it on
